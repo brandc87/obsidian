@@ -5,8 +5,11 @@ defmodule Obsidian.Auth do
 
   require Logger
 
-  @cmd_auth_login 1280
-  @cmd_auth_create_account 1282
+  @cmsg_auth_login 1280
+  @cmsg_auth_create_account 1282
+
+  @smsg_auth_create_account_success 1282
+  @smsg_auth_create_account_error 1283
 
   @impl ThousandIsland.Handler
   def handle_connection(_socket, state) do
@@ -22,7 +25,7 @@ defmodule Obsidian.Auth do
 
   @impl ThousandIsland.Handler
   def handle_data(
-        <<@cmd_auth_login::little-unsigned-16, _length::little-unsigned-16, packet::binary>>,
+        <<@cmsg_auth_login::little-unsigned-16, _length::little-unsigned-16, packet::binary>>,
         _socket,
         state
       ) do
@@ -41,7 +44,7 @@ defmodule Obsidian.Auth do
 
   @impl ThousandIsland.Handler
   def handle_data(
-        <<@cmd_auth_create_account::little-unsigned-16, _length::little-unsigned-16,
+        <<@cmsg_auth_create_account::little-unsigned-16, _length::little-unsigned-16,
           packet::binary>>,
         socket,
         state
@@ -66,15 +69,24 @@ defmodule Obsidian.Auth do
         {:ok, account} ->
           Logger.info("AUTH REGISTER: #{account.username}")
 
-          packet = <<1282::little-unsigned-16>>
-          ThousandIsland.Socket.send(socket, packet)
+          reply = <<@smsg_auth_create_account_success::little-unsigned-16>>
+          ThousandIsland.Socket.send(socket, reply)
 
           {:continue, state}
 
         {:error, _} ->
-          Logger.error("CLIENT REGISTER: #{username}")
+          Logger.error("AUTH REGISTER: #{username} FAILED")
 
-          {:close, state}
+          message = "Error creating account"
+
+          reply =
+            <<@smsg_auth_create_account_error::little-unsigned-16,
+              4 + byte_size(message)::little-unsigned-16>> <>
+              message
+
+          ThousandIsland.Socket.send(socket, reply)
+
+          {:continue, state}
       end
     end
   end
