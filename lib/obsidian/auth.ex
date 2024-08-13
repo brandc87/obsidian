@@ -7,23 +7,16 @@ defmodule Obsidian.Auth do
 
   @cmsg_auth_login 1280
   @cmsg_auth_create_account 1282
+  @cmsg_auth_start_game 1286
+  @cmsg_auth_logout 1297
 
   @smsg_auth_login_success 1280
-  @smsg_auth_login_fail 1281
+  @smsg_auth_login_error 1281
   @smsg_auth_create_account_success 1282
   @smsg_auth_create_account_error 1283
-
-  @impl ThousandIsland.Handler
-  def handle_connection(_socket, state) do
-    Logger.info("CLIENT CONNECTED")
-
-    {:continue, state}
-  end
-
-  @impl ThousandIsland.Handler
-  def handle_close(_socket, _state) do
-    Logger.info("CLIENT DISCONNECTED")
-  end
+  @smsg_auth_start_game_success 1286
+  @smsg_auth_start_game_error 1287
+  @smsg_auth_logout_success 1288
 
   @impl ThousandIsland.Handler
   def handle_data(
@@ -41,6 +34,7 @@ defmodule Obsidian.Auth do
 
       if account = Accounts.get_account_by_username_and_password(username, password) do
         Logger.info("AUTH LOGIN: #{account.username} logged in.")
+        state = state |> Map.put(:account, account)
 
         # TODO: Change this from hard coded.
         server_list =
@@ -48,12 +42,7 @@ defmodule Obsidian.Auth do
             %{
               public_address_ip: "127.0.0.1",
               public_address_port: 8000,
-              server_name: "Server 1"
-            },
-            %{
-              public_address_ip: "192.168.10.20",
-              public_address_port: 8000,
-              server_name: "Server 2"
+              server_name: "Obsidian"
             }
           ]
           |> Enum.map(fn server ->
@@ -75,7 +64,7 @@ defmodule Obsidian.Auth do
         message = "Wrong username or password"
 
         reply =
-          <<@smsg_auth_login_fail::little-unsigned-16,
+          <<@smsg_auth_login_error::little-unsigned-16,
             4 + byte_size(message)::little-unsigned-16>> <>
             message
 
@@ -83,6 +72,10 @@ defmodule Obsidian.Auth do
 
         {:continue, state}
       end
+    else
+      Logger.error("AUTH LOGIN: Invalid request")
+
+      {:close, state}
     end
   end
 
@@ -132,13 +125,82 @@ defmodule Obsidian.Auth do
 
           {:continue, state}
       end
+    else
+      Logger.error("AUTH REGISTER: Invalid request")
+
+      {:close, state}
     end
+  end
+
+  @impl ThousandIsland.Handler
+  def handle_data(
+        <<@cmsg_auth_start_game::little-unsigned-16, _length::little-unsigned-16,
+          packet::binary>>,
+        socket,
+        state
+      ) do
+    data =
+      packet
+      |> to_string()
+      |> String.split("/", parts: 2)
+
+    if Map.has_key?(state, :account) and length(data) == 2 do
+      Logger.info("AUTH START GAME: #{state.account.username}")
+
+      # TODO: Check for valid server in server list.
+
+      ticket = Obsidian.TicketGenerator.generate_ticket()
+
+      Obsidian.TicketSender.send_ticket({127, 0, 0, 1}, 6678, ticket)
+
+      reply =
+        <<@smsg_auth_start_game_success::little-unsigned-16,
+          4 + byte_size(ticket)::little-unsigned-16>> <>
+          ticket
+
+      ThousandIsland.Socket.send(socket, reply)
+
+      {:continue, state}
+    else
+      Logger.error("AUTH START GAME: Invalid request")
+
+      message = "Error starting game"
+
+      reply =
+        <<@smsg_auth_start_game_error::little-unsigned-16,
+          4 + byte_size(message)::little-unsigned-16>> <>
+          message
+
+      ThousandIsland.Socket.send(socket, reply)
+
+      {:close, state}
+    end
+  end
+
+  @impl ThousandIsland.Handler
+  def handle_data(
+        <<@cmsg_auth_logout::little-unsigned-16, _length::little-unsigned-16, _packet::binary>>,
+        socket,
+        state
+      ) do
+    state = state |> Map.delete(:account)
+
+    message = "Successfully logged out"
+
+    reply =
+      <<@smsg_auth_logout_success::little-unsigned-16,
+        4 + byte_size(message)::little-unsigned-16>> <>
+        message
+
+    ThousandIsland.Socket.send(socket, reply)
+
+    {:close, state}
   end
 
   @impl ThousandIsland.Handler
   def handle_data(<<opcode::little-unsigned-16, packet::binary>>, _socket, state) do
     Logger.error(
-      "UNIMPLEMENTED: #{inspect(opcode, base: :hex)} (#{inspect(opcode, base: :hex)}) - #{inspect(packet)}"
+      "UNIMPLEMENTED: #{inspect(opcode, base: :hex)} (#{inspect(opcode)}) - #{inspect(packet)}"
     )
 
     {:continue, state}

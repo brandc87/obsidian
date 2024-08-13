@@ -26,11 +26,15 @@ defmodule Obsidian.Application do
       {Finch, name: Obsidian.Finch},
       # Start a worker by calling: Obsidian.Worker.start_link(arg)
       # {Obsidian.Worker, arg},
+      {Obsidian.TicketReceiver, [name: Obsidian.TicketReceiver]},
+      {Obsidian.TicketSender, [name: Obsidian.TicketSender]},
       {ThousandIsland,
        port: @auth_port, handler_module: Obsidian.Auth, handler_options: @handler_options},
       # Start to serve requests, typically the last entry
       ObsidianWeb.Endpoint
     ]
+
+    :ets.new(:session, [:named_table, :public])
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
