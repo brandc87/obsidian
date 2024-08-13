@@ -27,9 +27,21 @@ defmodule Obsidian.Game do
       ) do
     Logger.info("GAME LOGIN: #{ticket} - #{mac_address}")
 
-    [{_, ticket_data}] = :ets.lookup(:tickets, ticket)
+    case :ets.lookup(:tickets, ticket) do
+      [{_, ticket_data}] ->
+        if DateTime.utc_now() < ticket_data.valid_until do
+          Logger.info("GAME LOGIN: Ticket valid.")
 
-    {:continue, state}
+          {:continue, state}
+        else
+          Logger.info("GAME LOGIN: Ticket expired.")
+
+          {:close, state}
+        end
+
+      _ ->
+        {:close, state}
+    end
   end
 
   @impl ThousandIsland.Handler
