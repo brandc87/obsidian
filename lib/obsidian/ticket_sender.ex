@@ -9,8 +9,8 @@ defmodule Obsidian.TicketSender do
     GenServer.start_link(__MODULE__, :ok, opts)
   end
 
-  def send_ticket(ip, port, ticket) do
-    GenServer.cast(__MODULE__, {:send_ticket, ip, port, ticket})
+  def send_ticket(ip, port, data) do
+    GenServer.cast(__MODULE__, {:send_ticket, ip, port, data})
   end
 
   def init(_opts) do
@@ -18,8 +18,8 @@ defmodule Obsidian.TicketSender do
     {:ok, %{socket: socket}}
   end
 
-  def handle_cast({:send_ticket, ip, port, ticket}, %{socket: socket} = state) do
-    :ok = :gen_udp.send(socket, ip, port, ticket)
+  def handle_cast({:send_ticket, ip, port, data}, %{socket: socket} = state) do
+    :ok = :gen_udp.send(socket, ip, port, data)
     {:noreply, state}
   end
 end

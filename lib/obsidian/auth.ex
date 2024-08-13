@@ -151,7 +151,17 @@ defmodule Obsidian.Auth do
 
       ticket = Obsidian.TicketGenerator.generate_ticket()
 
-      Obsidian.TicketSender.send_ticket({127, 0, 0, 1}, 6678, ticket)
+      ticket_data =
+        [
+          ticket,
+          state.account.username,
+          "",
+          "",
+          ""
+        ]
+        |> Enum.join(";")
+
+      Obsidian.TicketSender.send_ticket({127, 0, 0, 1}, 6678, ticket_data)
 
       reply =
         <<@smsg_auth_start_game_success::little-unsigned-16,

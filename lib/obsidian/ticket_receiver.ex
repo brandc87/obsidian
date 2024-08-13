@@ -18,6 +18,29 @@ defmodule Obsidian.TicketReceiver do
   def handle_info({:udp, _socket, ip, port, message}, state) do
     Logger.info("Received packet from #{inspect(ip)}:#{port} - #{message}")
 
+    data =
+      message
+      |> String.split(";")
+
+    if length(data) >= 4 do
+      [ticket, username, promo_code, referrer_code, uuid] = data
+
+      valid_until =
+        DateTime.utc_now()
+        |> DateTime.add(5 * 60, :second)
+
+      data = %{
+        ticket: ticket,
+        username: username,
+        promo_code: promo_code,
+        referrer_code: referrer_code,
+        uuid: uuid,
+        valid_until: valid_until
+      }
+
+      :ets.insert(:tickets, {ticket, data})
+    end
+
     {:noreply, state}
   end
 

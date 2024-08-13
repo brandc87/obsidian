@@ -37,7 +37,7 @@ defmodule Obsidian.Application do
       ObsidianWeb.Endpoint
     ]
 
-    :ets.new(:session, [:named_table, :public])
+    :ets.new(:tickets, [:named_table, :public])
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
