@@ -14,4 +14,13 @@ defmodule Obsidian.Game do
   def handle_close(_socket, _state) do
     Logger.info("CLIENT DISCONNECTED")
   end
+
+  @impl ThousandIsland.Handler
+  def handle_data(<<opcode::little-unsigned-16, packet::binary>>, _socket, state) do
+    Logger.error(
+      "UNIMPLEMENTED: #{inspect(opcode, base: :hex)} (#{inspect(opcode)}) - #{inspect(packet)}"
+    )
+
+    {:continue, state}
+  end
 end

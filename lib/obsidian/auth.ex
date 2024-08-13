@@ -40,8 +40,8 @@ defmodule Obsidian.Auth do
         server_list =
           [
             %{
-              public_address_ip: "127.0.0.1",
-              public_address_port: 8000,
+              public_address_ip: "192.168.20.24",
+              public_address_port: 8701,
               server_name: "Obsidian"
             }
           ]
@@ -179,10 +179,12 @@ defmodule Obsidian.Auth do
 
   @impl ThousandIsland.Handler
   def handle_data(
-        <<@cmsg_auth_logout::little-unsigned-16, _length::little-unsigned-16, _packet::binary>>,
+        <<@cmsg_auth_logout::little-unsigned-16>>,
         socket,
         state
       ) do
+    Logger.info("AUTH LOGOUT: #{state.account.username}")
+
     state = state |> Map.delete(:account)
 
     message = "Successfully logged out"

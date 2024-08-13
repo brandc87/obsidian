@@ -14,6 +14,7 @@ defmodule Obsidian.Application do
   }
 
   @auth_port 7800
+  @game_port 8701
 
   @impl true
   def start(_type, _args) do
@@ -30,6 +31,8 @@ defmodule Obsidian.Application do
       {Obsidian.TicketSender, [name: Obsidian.TicketSender]},
       {ThousandIsland,
        port: @auth_port, handler_module: Obsidian.Auth, handler_options: @handler_options},
+      {ThousandIsland,
+       port: @game_port, handler_module: Obsidian.Game, handler_options: @handler_options},
       # Start to serve requests, typically the last entry
       ObsidianWeb.Endpoint
     ]
