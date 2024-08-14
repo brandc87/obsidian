@@ -33,7 +33,7 @@ defmodule Obsidian.Auth do
       [username, password] = array
 
       if account = Accounts.get_account_by_username_and_password(username, password) do
-        Logger.info("AUTH LOGIN: #{account.username} logged in.")
+        Logger.debug("AUTH LOGIN: #{account.username} logged in.")
         state = state |> Map.put(:account, account)
 
         # TODO: Change this from hard coded.
@@ -59,7 +59,7 @@ defmodule Obsidian.Auth do
 
         {:continue, state}
       else
-        Logger.info("AUTH LOGIN: #{username} failed logged in.")
+        Logger.debug("AUTH LOGIN: #{username} failed logged in.")
 
         message = "Wrong username or password"
 
@@ -73,7 +73,7 @@ defmodule Obsidian.Auth do
         {:continue, state}
       end
     else
-      Logger.error("AUTH LOGIN: Invalid request")
+      Logger.warning("AUTH LOGIN: Invalid request")
 
       {:close, state}
     end
@@ -104,7 +104,7 @@ defmodule Obsidian.Auth do
       |> Accounts.register_account()
       |> case do
         {:ok, account} ->
-          Logger.info("AUTH REGISTER: #{account.username}")
+          Logger.debug("AUTH REGISTER: #{account.username}")
 
           reply = <<@smsg_auth_create_account_success::little-unsigned-16>>
           ThousandIsland.Socket.send(socket, reply)
@@ -126,7 +126,7 @@ defmodule Obsidian.Auth do
           {:continue, state}
       end
     else
-      Logger.error("AUTH REGISTER: Invalid request")
+      Logger.warning("AUTH REGISTER: Invalid request")
 
       {:close, state}
     end
@@ -145,7 +145,7 @@ defmodule Obsidian.Auth do
       |> String.split("/", parts: 2)
 
     if Map.has_key?(state, :account) and length(data) == 2 do
-      Logger.info("AUTH START GAME: #{state.account.username}")
+      Logger.debug("AUTH START GAME: #{state.account.username}")
 
       # TODO: Check for valid server in server list.
 
@@ -172,7 +172,7 @@ defmodule Obsidian.Auth do
 
       {:continue, state}
     else
-      Logger.error("AUTH START GAME: Invalid request")
+      Logger.warning("AUTH START GAME: Invalid request")
 
       message = "Error starting game"
 
@@ -193,7 +193,7 @@ defmodule Obsidian.Auth do
         socket,
         state
       ) do
-    Logger.info("AUTH LOGOUT: #{state.account.username}")
+    Logger.debug("AUTH LOGOUT: #{state.account.username}")
 
     state = state |> Map.delete(:account)
 
@@ -211,7 +211,7 @@ defmodule Obsidian.Auth do
 
   @impl ThousandIsland.Handler
   def handle_data(<<opcode::little-unsigned-16, packet::binary>>, _socket, state) do
-    Logger.error(
+    Logger.warning(
       "UNIMPLEMENTED: #{inspect(opcode, base: :hex)} (#{inspect(opcode)}) - #{inspect(packet)}"
     )
 

@@ -6,6 +6,7 @@ defmodule Obsidian.Game do
   require Logger
 
   @cmsg_login 1001
+  @cmsg_create_character 1002
 
   @smsg_unknown_692 692
   @smsg_unknown_693 693
@@ -92,7 +93,7 @@ defmodule Obsidian.Game do
         socket,
         state
       ) do
-    Logger.info("GAME LOGIN: #{ticket} - #{mac_address}")
+    Logger.debug("GAME LOGIN: #{ticket} - #{mac_address}")
 
     with [{_, %{valid_until: _valid_until, username: username}}] <- :ets.lookup(:tickets, ticket),
          # Check valid until here.
@@ -115,33 +116,57 @@ defmodule Obsidian.Game do
         <<@smsg_unknown_692::little-unsigned-16, 50::little-unsigned-16, 60::little-unsigned-16,
           70::little-unsigned-16, 80::little-unsigned-16, 90::little-unsigned-16,
           100::little-unsigned-16, 100::little-unsigned-16>>
-        |> Obsidian.Packets.Crypt.encode_decode()
+        |> Obsidian.Packets.Crypt.encode()
 
       ThousandIsland.Socket.send(socket, unknown_692)
 
       unknown_693 =
         <<@smsg_unknown_693::little-unsigned-16, 1::little-signed-integer-32>>
-        |> Obsidian.Packets.Crypt.encode_decode()
+        |> Obsidian.Packets.Crypt.encode()
 
       ThousandIsland.Socket.send(socket, unknown_693)
 
       unknown_1004 =
         <<@smsg_unknown_1004::little-unsigned-16, 0::847*8>>
-        |> Obsidian.Packets.Crypt.encode_decode()
+        |> Obsidian.Packets.Crypt.encode()
 
       ThousandIsland.Socket.send(socket, unknown_1004)
 
       {:continue, state}
     else
       _ ->
-        Logger.info("GAME LOGIN: Ticket expired or invalid.")
+        Logger.warning("GAME LOGIN: Ticket expired or invalid.")
         {:close, state}
     end
   end
 
   @impl ThousandIsland.Handler
+  def handle_data(
+        <<@cmsg_create_character::little-unsigned-16, packet::binary>>,
+        _socket,
+        state
+      ) do
+    decoded =
+      packet
+      |> Obsidian.Packets.Crypt.decode()
+
+    <<name::bytes-size(32), gender::integer-8, class::integer-8, hair_style::integer-8,
+      hair_colour::integer-8, face_style::integer-8,
+      _rest::binary>> =
+      decoded
+
+    {:ok, character_name, _} = Obsidian.Util.parse_string(name)
+
+    Logger.debug(
+      "CREATE CHARACTER: #{inspect(character_name)} - #{gender} - #{class} - #{hair_style} - #{hair_colour} - #{face_style}"
+    )
+
+    {:continue, state}
+  end
+
+  @impl ThousandIsland.Handler
   def handle_data(<<opcode::little-unsigned-16, packet::binary>>, _socket, state) do
-    Logger.error(
+    Logger.warning(
       "UNIMPLEMENTED: #{inspect(opcode, base: :hex)} (#{inspect(opcode)}) - #{inspect(packet)}"
     )
 

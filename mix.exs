@@ -60,7 +60,8 @@ defmodule Obsidian.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:thousand_island, "~> 1.0"}
+      {:thousand_island, "~> 1.0"},
+      {:binary, "~> 0.0.5"}
     ]
   end
 
