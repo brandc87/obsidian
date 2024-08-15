@@ -1,9 +1,9 @@
-defmodule Obsidian.Game do
+defmodule Obsidian.Net.GameHandler do
   use ThousandIsland.Handler
 
-  alias Obsidian.Context.Accounts
-
   require Logger
+
+  alias Obsidian.Context
 
   @cmsg_login 1001
   @cmsg_create_character 1002
@@ -11,6 +11,7 @@ defmodule Obsidian.Game do
   @smsg_unknown_692 692
   @smsg_unknown_693 693
   @smsg_unknown_1004 1004
+  @smsg_unknown_1005 1005
 
   @smsg_login_success 1002
   @smsg_status 1012
@@ -97,7 +98,9 @@ defmodule Obsidian.Game do
 
     with [{_, %{valid_until: _valid_until, username: username}}] <- :ets.lookup(:tickets, ticket),
          # Check valid until here.
-         account when not is_nil(account) <- Accounts.get_account_by_username(username) do
+         account when not is_nil(account) <- Context.Accounts.get_account_by_username(username) do
+      state = state |> Map.put(:account, account)
+
       {bytes, _} = @unknown_bytes
       login_bytes = :binary.list_to_bin(bytes)
 
@@ -126,8 +129,39 @@ defmodule Obsidian.Game do
 
       ThousandIsland.Socket.send(socket, unknown_693)
 
+      characters = Context.Characters.list(account)
+      character_count = characters |> Enum.count()
+
+      characters_data =
+        characters
+        |> Enum.map(fn c ->
+          head = <<c.id::little-size(32)>> <> c.name
+
+          current_size = byte_size(head)
+          padding_size = 61 - current_size
+
+          padding = <<0::size(padding_size * 8)>>
+
+          head <>
+            padding <>
+            <<c.job::little-unsigned-8, c.gender::little-unsigned-8,
+              c.hair_style::little-unsigned-8, c.hair_colour::little-unsigned-8,
+              c.face_style::little-unsigned-8, 0::little-unsigned-8, c.level::little-unsigned-8,
+              142::little-size(32), 0::little-unsigned-8, 0::little-size(32), 0::little-size(32),
+              0::little-size(32), 0::little-size(32), 0::little-size(32), 0::little-unsigned-8>>
+        end)
+
+      packet =
+        case character_count do
+          0 -> <<0>>
+          _ -> <<character_count::little-unsigned-8>> <> Enum.join(characters_data)
+        end
+
+      packet_length = 847 - byte_size(packet)
+
       unknown_1004 =
-        <<@smsg_unknown_1004::little-unsigned-16, 0::847*8>>
+        (<<@smsg_unknown_1004::little-unsigned-16>> <>
+           packet <> <<0::packet_length*8>>)
         |> Obsidian.Packets.Crypt.encode()
 
       ThousandIsland.Socket.send(socket, unknown_1004)
@@ -143,23 +177,56 @@ defmodule Obsidian.Game do
   @impl ThousandIsland.Handler
   def handle_data(
         <<@cmsg_create_character::little-unsigned-16, packet::binary>>,
-        _socket,
+        socket,
         state
       ) do
     decoded =
       packet
       |> Obsidian.Packets.Crypt.decode()
 
-    <<name::bytes-size(32), gender::integer-8, class::integer-8, hair_style::integer-8,
+    <<name::bytes-size(32), gender::integer-8, job::integer-8, hair_style::integer-8,
       hair_colour::integer-8, face_style::integer-8,
       _rest::binary>> =
       decoded
 
     {:ok, character_name, _} = Obsidian.Util.parse_string(name)
 
-    Logger.debug(
-      "CREATE CHARACTER: #{inspect(character_name)} - #{gender} - #{class} - #{hair_style} - #{hair_colour} - #{face_style}"
-    )
+    hair_style = job * 65536 + gender * 256 + hair_style
+    face_style = job * 65536 + gender * 256 + face_style
+
+    attrs = %{
+      name: character_name,
+      gender: gender,
+      job: job,
+      hair_style: hair_style,
+      hair_colour: hair_colour,
+      face_style: face_style
+    }
+
+    {:ok, character} = Context.Characters.create_character(state.account, attrs)
+
+    head = <<character.id::little-size(32)>> <> character.name
+
+    current_size = byte_size(head)
+    padding_size = 61 - current_size
+
+    padding = <<0::size(padding_size * 8)>>
+
+    character_data =
+      head <>
+        padding <>
+        <<character.job::little-unsigned-8, character.gender::little-unsigned-8,
+          character.hair_style::little-unsigned-8, character.hair_colour::little-unsigned-8,
+          character.face_style::little-unsigned-8, 0::little-unsigned-8,
+          character.level::little-unsigned-8, 142::little-size(32), 0::little-unsigned-8,
+          0::little-size(32), 0::little-size(32), 0::little-size(32), 0::little-size(32),
+          0::little-size(32), 0::little-unsigned-8>>
+
+    unknown_1005 =
+      (<<@smsg_unknown_1005::little-unsigned-16>> <> character_data)
+      |> Obsidian.Packets.Crypt.encode()
+
+    ThousandIsland.Socket.send(socket, unknown_1005)
 
     {:continue, state}
   end

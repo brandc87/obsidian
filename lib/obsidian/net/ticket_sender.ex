@@ -1,4 +1,4 @@
-defmodule Obsidian.TicketSender do
+defmodule Obsidian.Net.TicketSender do
   use GenServer
 
   require Logger

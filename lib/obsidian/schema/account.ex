@@ -1,8 +1,13 @@
 defmodule Obsidian.Schema.Account do
   use Ecto.Schema
+
   import Ecto.Changeset
 
+  alias Obsidian.Schema
+
   schema "accounts" do
+    has_many :characters, Schema.Character
+
     field :username, :string
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true

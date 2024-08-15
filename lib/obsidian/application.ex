@@ -27,12 +27,16 @@ defmodule Obsidian.Application do
       {Finch, name: Obsidian.Finch},
       # Start a worker by calling: Obsidian.Worker.start_link(arg)
       # {Obsidian.Worker, arg},
-      {Obsidian.TicketReceiver, [name: Obsidian.TicketReceiver]},
-      {Obsidian.TicketSender, [name: Obsidian.TicketSender]},
+      {Obsidian.Net.TicketReceiver, [name: Obsidian.Net.TicketReceiver]},
+      {Obsidian.Net.TicketSender, [name: Obsidian.Net.TicketSender]},
       {ThousandIsland,
-       port: @auth_port, handler_module: Obsidian.Auth, handler_options: @handler_options},
+       port: @auth_port,
+       handler_module: Obsidian.Net.AuthHandler,
+       handler_options: @handler_options},
       {ThousandIsland,
-       port: @game_port, handler_module: Obsidian.Game, handler_options: @handler_options},
+       port: @game_port,
+       handler_module: Obsidian.Net.GameHandler,
+       handler_options: @handler_options},
       # Start to serve requests, typically the last entry
       ObsidianWeb.Endpoint
     ]

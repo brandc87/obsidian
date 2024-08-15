@@ -1,4 +1,4 @@
-defmodule Obsidian.Auth do
+defmodule Obsidian.Net.AuthHandler do
   use ThousandIsland.Handler
 
   alias Obsidian.Context.Accounts
@@ -161,7 +161,7 @@ defmodule Obsidian.Auth do
         ]
         |> Enum.join(";")
 
-      Obsidian.TicketSender.send_ticket({127, 0, 0, 1}, 6678, ticket_data)
+      Obsidian.Net.TicketSender.send_ticket({127, 0, 0, 1}, 6678, ticket_data)
 
       reply =
         <<@smsg_auth_start_game_success::little-unsigned-16,
@@ -193,7 +193,9 @@ defmodule Obsidian.Auth do
         socket,
         state
       ) do
-    Logger.debug("AUTH LOGOUT: #{state.account.username}")
+    if Map.has_key?(state, :account) do
+      Logger.debug("AUTH LOGOUT: #{state.account.username}")
+    end
 
     state = state |> Map.delete(:account)
 
