@@ -1,6 +1,10 @@
 defmodule Obsidian.Util do
   import Binary, only: [split_at: 2, trim_trailing: 1]
 
+  def send_packet(opcode, payload) do
+    GenServer.cast(self(), {:send_packet, opcode, payload})
+  end
+
   def parse_string(payload, pos \\ 1)
   def parse_string(payload, _pos) when byte_size(payload) == 0, do: {:ok, payload, <<>>}
 
