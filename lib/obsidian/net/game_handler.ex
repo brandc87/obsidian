@@ -22,8 +22,10 @@ defmodule Obsidian.Net.GameHandler do
   ]
 
   @cmsg_create_character 1002
+  @cmsg_delete_character 1003
 
   @character_select_opcodes [
+    @cmsg_create_character,
     @cmsg_create_character
   ]
 
@@ -36,15 +38,42 @@ defmodule Obsidian.Net.GameHandler do
   @smsg_error_message 1001
   @smsg_enter_game_success 1003
 
-  @smsg_unknown_1005 1005
   @smsg_gateway_pong 1010
 
-  def dispatch_packet(opcode, payload, state) when opcode in @chat_opcodes do
-    Obsidian.Handlers.Chat.handle_packet(opcode, payload, state)
-  end
+  @unknown_272 272
+
+  @unknown_opcodes [
+    @unknown_272
+  ]
 
   def dispatch_packet(opcode, payload, state) when opcode in @auth_opcodes do
     Obsidian.Handlers.Auth.handle_packet(opcode, payload, state)
+  end
+
+  def dispatch_packet(opcode, payload, state) when opcode in @character_select_opcodes do
+    payload |> Obsidian.Packets.Crypt.decode()
+
+    Obsidian.Handlers.CharacterSelect.handle_packet(opcode, payload, state)
+  end
+
+  def dispatch_packet(opcode, payload, state) when opcode in @chat_opcodes do
+    payload |> Obsidian.Packets.Crypt.decode()
+
+    Obsidian.Handlers.Chat.handle_packet(opcode, payload, state)
+  end
+
+  def dispatch_packet(opcode, payload, state) when opcode in @chat_opcodes do
+    payload |> Obsidian.Packets.Crypt.decode()
+
+    Obsidian.Handlers.Chat.handle_packet(opcode, payload, state)
+  end
+
+  def dispatch_packet(opcode, _payload, state) when opcode in @unknown_opcodes do
+    Logger.debug(
+      "UNKNOWN PACKET: #{inspect(opcode, base: :hex)} (#{inspect(opcode)}) - #{inspect(payload)}"
+    )
+
+    {:continue, state}
   end
 
   def dispatch_packet(opcode, payload, state) do
@@ -65,88 +94,6 @@ defmodule Obsidian.Net.GameHandler do
   @impl ThousandIsland.Handler
   def handle_close(_socket, _state) do
     Logger.info("CLIENT DISCONNECTED")
-  end
-
-  @impl ThousandIsland.Handler
-  def handle_data(
-        <<@cmsg_create_character::little-unsigned-16, packet::binary>>,
-        socket,
-        state
-      ) do
-    decoded =
-      packet
-      |> Obsidian.Packets.Crypt.decode()
-
-    <<name::bytes-size(32), gender::integer-8, job::integer-8, hair_style::integer-8,
-      hair_colour::integer-8, face_style::integer-8,
-      _rest::binary>> =
-      decoded
-
-    {:ok, character_name, _} = Obsidian.Util.parse_string(name)
-
-    hair_style = job * 65536 + gender * 256 + hair_style
-    face_style = job * 65536 + gender * 256 + face_style
-
-    attrs = %{
-      name: character_name,
-      gender: gender,
-      job: job,
-      hair_style: hair_style,
-      hair_colour: hair_colour,
-      face_style: face_style
-    }
-
-    characters = Context.Characters.get_characters!(state.account)
-    character_count = characters |> Enum.count()
-
-    if character_count >= 4 do
-      reply =
-        <<@smsg_error_message, 267::little-unsigned-32, 0::little-unsigned-32,
-          0::little-unsigned-32>>
-        |> Obsidian.Packets.Crypt.encode()
-
-      ThousandIsland.Socket.send(socket, reply)
-
-      {:continue, state}
-    end
-
-    if byte_size(character_name) > 24 do
-      reply =
-        <<@smsg_error_message, 270::little-unsigned-32, 0::little-unsigned-32,
-          0::little-unsigned-32>>
-        |> Obsidian.Packets.Crypt.encode()
-
-      ThousandIsland.Socket.send(socket, reply)
-
-      {:continue, state}
-    end
-
-    {:ok, character} = Context.Characters.create(state.account, attrs)
-
-    head = <<character.id::little-size(32)>> <> character.name
-
-    current_size = byte_size(head)
-    padding_size = 61 - current_size
-
-    padding = <<0::size(padding_size * 8)>>
-
-    character_data =
-      head <>
-        padding <>
-        <<character.job::little-unsigned-8, character.gender::little-unsigned-8,
-          character.hair_style::little-unsigned-8, character.hair_colour::little-unsigned-8,
-          character.face_style::little-unsigned-8, 0::little-unsigned-8,
-          character.level::little-unsigned-8, 142::little-size(32), 0::little-unsigned-8,
-          0::little-size(32), 0::little-size(32), 0::little-size(32), 0::little-size(32),
-          0::little-size(32), 0::little-unsigned-8>>
-
-    unknown_1005 =
-      (<<@smsg_unknown_1005::little-unsigned-16>> <> character_data)
-      |> Obsidian.Packets.Crypt.encode()
-
-    ThousandIsland.Socket.send(socket, unknown_1005)
-
-    {:continue, state}
   end
 
   @impl ThousandIsland.Handler
@@ -324,11 +271,7 @@ defmodule Obsidian.Net.GameHandler do
   def handle_data(data, _socket, state) do
     <<opcode::little-unsigned-16, packet::binary>> = data
 
-    decoded =
-      packet
-      |> Obsidian.Packets.Crypt.decode()
-
-    dispatch_packet(opcode, decoded, state)
+    dispatch_packet(opcode, packet, state)
   end
 
   @impl GenServer
@@ -336,6 +279,15 @@ defmodule Obsidian.Net.GameHandler do
     packet =
       (<<opcode::little-unsigned-16>> <> payload)
       |> Obsidian.Packets.Crypt.encode()
+
+    ThousandIsland.Socket.send(socket, packet)
+
+    {:noreply, {socket, state}, socket.read_timeout}
+  end
+
+  @impl GenServer
+  def handle_cast({:send_unencrypted_packet, opcode, payload}, {socket, state}) do
+    packet = <<opcode::little-unsigned-16>> <> payload
 
     ThousandIsland.Socket.send(socket, packet)
 

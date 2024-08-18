@@ -10,9 +10,15 @@ defmodule Obsidian.Context.Characters do
   end
 
   def create(account, attrs) do
-    %Schema.Character{account: account}
-    |> Schema.Character.changeset(attrs)
-    |> Repo.insert()
+    with {:exists, false} <- {:exists, character_exists?(attrs.name)},
+         {:limit, false} <- {:limit, at_character_limit?(account)},
+         {:ok, character} <- create_character(account, attrs) do
+      {:ok, character}
+    else
+      {:exists, true} -> {:error, :character_exists}
+      {:limit, true} -> {:error, :character_limit}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   def get(%Schema.Account{id: account_id}, character_id) do
@@ -45,5 +51,11 @@ defmodule Obsidian.Context.Characters do
       characters when length(characters) >= 4 -> true
       _ -> false
     end
+  end
+
+  defp create_character(account, attrs) do
+    %Schema.Character{account: account}
+    |> Schema.Character.changeset(attrs)
+    |> Repo.insert()
   end
 end

@@ -1,8 +1,14 @@
 defmodule Obsidian.Util do
   import Binary, only: [split_at: 2, trim_trailing: 1]
 
-  def send_packet(opcode, payload) do
-    GenServer.cast(self(), {:send_packet, opcode, payload})
+  def send_packet(opcode, payload, encrypted \\ true) do
+    case encrypted do
+      true ->
+        GenServer.cast(self(), {:send_packet, opcode, payload})
+
+      false ->
+        GenServer.cast(self(), {:send_unencrypted_packet, opcode, payload})
+    end
   end
 
   def parse_string(payload, pos \\ 1)

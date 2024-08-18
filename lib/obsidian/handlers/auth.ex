@@ -1,5 +1,5 @@
 defmodule Obsidian.Handlers.Auth do
-  import Obsidian.Util, only: [send_packet: 2]
+  import Obsidian.Util, only: [send_packet: 2, send_packet: 3]
 
   alias Obsidian.Context
 
@@ -75,11 +75,11 @@ defmodule Obsidian.Handlers.Auth do
     <<_::bytes-little-size(70), ticket::bytes-little-size(38), _::bytes-little-size(26),
       mac_address::bytes-little-size(17), _rest::binary>> = payload
 
-    Logger.debug("GAME LOGIN: #{ticket} - #{mac_address}")
-
     with [{_, %{valid_until: _valid_until, username: username}}] <- :ets.lookup(:tickets, ticket),
          # Check valid until here.
          account when not is_nil(account) <- Context.Accounts.get_account_by_username(username) do
+      Logger.debug("CMSG_AUTH: #{ticket} - #{mac_address}")
+
       state = state |> Map.put(:account, account)
 
       {bytes, _} = @unknown_bytes
@@ -88,12 +88,14 @@ defmodule Obsidian.Handlers.Auth do
       send_packet(
         @smsg_auth_response,
         <<4 + length(bytes)::little-unsigned-16>> <>
-          login_bytes
+          login_bytes,
+        false
       )
 
       send_packet(
         @smsg_status,
-        <<0::little-unsigned-8>>
+        <<0::little-unsigned-8>>,
+        false
       )
 
       send_packet(
@@ -143,7 +145,7 @@ defmodule Obsidian.Handlers.Auth do
       {:continue, state}
     else
       _ ->
-        Logger.warning("GAME LOGIN: Ticket expired or invalid.")
+        Logger.warning("CMSG_AUTH: Ticket expired or invalid.")
         {:close, state}
     end
   end
