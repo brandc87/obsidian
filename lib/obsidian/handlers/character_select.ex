@@ -6,6 +6,7 @@ defmodule Obsidian.Handlers.CharacterSelect do
   require Logger
 
   @cmsg_create_character 1002
+  @cmsg_freeze_character 1003
 
   @smsg_error_message 1001
   @smsg_character_created 1005
@@ -66,6 +67,27 @@ defmodule Obsidian.Handlers.CharacterSelect do
               0::little-size(32), 0::little-unsigned-8>>
 
         send_packet(@smsg_character_created, character_data)
+    end
+
+    {:continue, state}
+  end
+
+  def handle_packet(@cmsg_freeze_character, payload, state) do
+    <<character_id::little-size(32)>> = payload
+    Logger.debug("CMSG_FREEZE_CHARACTER: #{state.account.username} - #{character_id}")
+
+    case Context.Characters.get(state.account, character_id) do
+      {:ok, character} ->
+        # TODO: Check if in guild
+        # TODO: Check if has mentor
+        # TODO: Check if 5 or more characters already frozen
+        Logger.debug("CMSG_FREEZE_CHARACTER: Freezing #{character.name}")
+
+      {:error, _} ->
+        send_packet(
+          @smsg_error_message,
+          <<277::little-unsigned-32, 0::little-unsigned-32, 0::little-unsigned-32>>
+        )
     end
 
     {:continue, state}

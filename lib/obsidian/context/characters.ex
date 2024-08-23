@@ -46,8 +46,8 @@ defmodule Obsidian.Context.Characters do
     end
   end
 
-  def at_character_limit?(%Schema.Account{id: account_id}) do
-    case get_characters!(account_id) do
+  def at_character_limit?(%Schema.Account{} = account) do
+    case get_characters!(account) do
       characters when length(characters) >= 4 -> true
       _ -> false
     end

@@ -22,11 +22,11 @@ defmodule Obsidian.Net.GameHandler do
   ]
 
   @cmsg_create_character 1002
-  @cmsg_delete_character 1003
+  @cmsg_freeze_character 1003
 
   @character_select_opcodes [
     @cmsg_create_character,
-    @cmsg_create_character
+    @cmsg_freeze_character
   ]
 
   @cmsg_enter_game 1006
@@ -46,29 +46,27 @@ defmodule Obsidian.Net.GameHandler do
     @unknown_272
   ]
 
+  @skip_decoding [
+    @cmsg_auth
+  ]
+
   def dispatch_packet(opcode, payload, state) when opcode in @auth_opcodes do
     Obsidian.Handlers.Auth.handle_packet(opcode, payload, state)
   end
 
   def dispatch_packet(opcode, payload, state) when opcode in @character_select_opcodes do
-    payload |> Obsidian.Packets.Crypt.decode()
-
     Obsidian.Handlers.CharacterSelect.handle_packet(opcode, payload, state)
   end
 
   def dispatch_packet(opcode, payload, state) when opcode in @chat_opcodes do
-    payload |> Obsidian.Packets.Crypt.decode()
-
     Obsidian.Handlers.Chat.handle_packet(opcode, payload, state)
   end
 
   def dispatch_packet(opcode, payload, state) when opcode in @chat_opcodes do
-    payload |> Obsidian.Packets.Crypt.decode()
-
     Obsidian.Handlers.Chat.handle_packet(opcode, payload, state)
   end
 
-  def dispatch_packet(opcode, _payload, state) when opcode in @unknown_opcodes do
+  def dispatch_packet(opcode, payload, state) when opcode in @unknown_opcodes do
     Logger.debug(
       "UNKNOWN PACKET: #{inspect(opcode, base: :hex)} (#{inspect(opcode)}) - #{inspect(payload)}"
     )
@@ -271,7 +269,16 @@ defmodule Obsidian.Net.GameHandler do
   def handle_data(data, _socket, state) do
     <<opcode::little-unsigned-16, packet::binary>> = data
 
-    dispatch_packet(opcode, packet, state)
+    decoded_packet =
+      cond do
+        opcode in @skip_decoding ->
+          packet
+
+        true ->
+          packet |> Obsidian.Packets.Crypt.decode()
+      end
+
+    dispatch_packet(opcode, decoded_packet, state)
   end
 
   @impl GenServer
