@@ -14,6 +14,8 @@ defmodule Obsidian.Repo.Migrations.CreateCharacters do
       add :level, :integer, null: false
       add :experience, :bigint, null: false
 
+      add :frozen_at, :utc_datetime
+
       timestamps(type: :utc_datetime)
     end
 

@@ -14,6 +14,12 @@ defmodule Obsidian.Schema.Character do
     :face_style
   ]
 
+  @optional_fields [
+    :level,
+    :experience,
+    :frozen_at
+  ]
+
   schema "characters" do
     belongs_to :account, Schema.Account
 
@@ -26,13 +32,15 @@ defmodule Obsidian.Schema.Character do
     field :level, :integer, default: 1
     field :experience, :integer, default: 0
 
+    field :frozen_at, :utc_datetime, default: nil
+
     timestamps(type: :utc_datetime)
   end
 
   @doc false
   def changeset(character, attrs) do
     character
-    |> cast(attrs, @fields)
+    |> cast(attrs, @fields ++ @optional_fields)
     |> validate_required(@fields)
     |> unsafe_validate_unique(:name, Obsidian.Repo)
     |> unique_constraint(:name)

@@ -123,13 +123,20 @@ defmodule Obsidian.Handlers.Auth do
 
           padding = <<0::size(padding_size * 8)>>
 
+          frozen_at =
+            case c.frozen_at do
+              nil -> 0
+              frozen_at_time -> Obsidian.Util.time_seconds(frozen_at_time)
+            end
+
           head <>
             padding <>
             <<c.job::little-unsigned-8, c.gender::little-unsigned-8,
               c.hair_style::little-unsigned-8, c.hair_colour::little-unsigned-8,
               c.face_style::little-unsigned-8, 0::little-unsigned-8, c.level::little-unsigned-8,
               142::little-size(32), 0::little-unsigned-8, 0::little-size(32), 0::little-size(32),
-              0::little-size(32), 0::little-size(32), 0::little-size(32), 0::little-unsigned-8>>
+              0::little-size(32), 0::little-size(32), frozen_at::little-size(32),
+              0::little-unsigned-8>>
         end)
 
       packet =

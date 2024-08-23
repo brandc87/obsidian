@@ -39,6 +39,12 @@ defmodule Obsidian.Context.Characters do
     Repo.delete(character)
   end
 
+  def update(%Schema.Character{} = character, attrs) do
+    character
+    |> Schema.Character.changeset(attrs)
+    |> Repo.update()
+  end
+
   def character_exists?(name) do
     case get(name) do
       {:error, _} -> false

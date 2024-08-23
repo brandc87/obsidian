@@ -24,4 +24,11 @@ defmodule Obsidian.Util do
         parse_string(payload, pos + 1)
     end
   end
+
+  def time_seconds(date) do
+    system_time = DateTime.utc_now()
+    diff_seconds = DateTime.diff(date, system_time, :second)
+
+    diff_seconds
+  end
 end

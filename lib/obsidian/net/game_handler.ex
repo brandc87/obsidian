@@ -23,10 +23,14 @@ defmodule Obsidian.Net.GameHandler do
 
   @cmsg_create_character 1002
   @cmsg_freeze_character 1003
+  @cmsg_delete_character 1004
+  @cmsg_unfreeze_character 1005
 
   @character_select_opcodes [
     @cmsg_create_character,
-    @cmsg_freeze_character
+    @cmsg_freeze_character,
+    @cmsg_delete_character,
+    @cmsg_unfreeze_character
   ]
 
   @cmsg_enter_game 1006
