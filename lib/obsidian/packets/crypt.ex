@@ -3,7 +3,6 @@ defmodule Obsidian.Packets.Crypt do
 
   require Logger
 
-  # Replace with your actual encryption key
   @encryption_key 129
 
   def encode(buffer) when is_binary(buffer) do

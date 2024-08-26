@@ -11,6 +11,10 @@ defmodule Obsidian.Util do
     end
   end
 
+  def send_packet(payload) do
+    GenServer.cast(self(), {:send_packet, payload})
+  end
+
   def parse_string(payload, pos \\ 1)
   def parse_string(payload, _pos) when byte_size(payload) == 0, do: {:ok, payload, <<>>}
 

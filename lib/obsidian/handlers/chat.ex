@@ -3,6 +3,7 @@ defmodule Obsidian.Handlers.Chat do
 
   @cmsg_chat_message 131
 
-  def handle_packet(@cmsg_chat_message, _payload, _state) do
+  def handle_packet(@cmsg_chat_message, _payload, state) do
+    {:continue, state}
   end
 end
